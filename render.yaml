@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: homework-helper
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn 'web:create_app()' --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 90 --access-logfile -
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.10
+      - key: APP_PASSWORD
+        sync: false
+      - key: REQUIRE_HTTPS
+        value: "true"
+      - key: STORAGE_PERSISTENT
+        value: "false"
+      - key: HOMEWORK_DB
+        value: /tmp/homework/homework.db

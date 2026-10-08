@@ -39,6 +39,23 @@ def list_errors(filters):
   output.append({'id':row['id'], 'created':row['created'], 'confirmed':bool(row['confirmed']), 'group_id':row['group_id'] or row['id'], 'result':r})
  return output
 
+def confirm(data):
+ if data.get('verdict') not in ('正确','部分得分','错误'): raise ValueError('请选择复核判定')
+ with LOCK, connect() as db:
+  row = db.execute('SELECT result FROM attempts WHERE id=?',(int(data['id']),)).fetchone()
+  if not row: raise LookupError('记录不存在')
+  r = json.loads(row['result']); earned = data.get('earned')
+  if not isinstance(earned,list) or len(earned)!=len(r['points']): raise ValueError('须逐条确认采分点分数')
+  for p,v in zip(r['points'],earned):
+   if not isinstance(v,(int,float)) or isinstance(v,bool) or not math.isfinite(v) or not 0<=v<=p['score']: raise ValueError('复核分值越界')
+   p['earned']=v
+  score=sum(earned); expected='正确' if score==r['total'] else '错误' if score==0 else '部分得分'
+  if expected!=data['verdict']: raise ValueError('总分与判定不一致')
+  if expected!='正确' and data.get('error_type') not in ERRORS: raise ValueError('错题必须确认A/B/C/D错误类型')
+  r.update(verdict=expected,score=score,needs_review=False,error_type='' if expected=='正确' else data['error_type'],basis='人工复核评分')
+  db.execute('UPDATE attempts SET result=?,confirmed=1 WHERE id=?',(json.dumps(r,ensure_ascii=False),data['id']))
+ return r
+
 class Handler(BaseHTTPRequestHandler):
  def send(self, code, data, mime='application/json; charset=utf-8'):
   payload = json.dumps(data, ensure_ascii=False).encode() if mime.startswith('application/json') else data.encode() if isinstance(data,str) else data
@@ -46,6 +63,7 @@ class Handler(BaseHTTPRequestHandler):
  def do_GET(self):
   if self.headers.get('Host','').split(':')[0] not in ('127.0.0.1','localhost'): return self.send(403, {'error':'仅允许本机访问'})
   parsed = urlparse(self.path)
+  if parsed.path == '/api/config': return self.send(200, {'online':False,'model_available':bool(os.environ.get('GRADING_API_KEY')),'storage_persistent':True})
   if parsed.path == '/api/example': return self.send(200, EXAMPLE)
   if parsed.path == '/api/errors': return self.send(200,list_errors(parse_qs(parsed.query)))
   if parsed.path == '/api/export':
@@ -83,23 +101,11 @@ class Handler(BaseHTTPRequestHandler):
     r = json.loads(row['result'])
     return self.send(200,{'id':data['id'],'result':r,'report':report(r,bool(data.get('compact')))})
    if self.path == '/api/confirm':
-    if data.get('verdict') not in ('正确','部分得分','错误'): raise ValueError('请选择复核判定')
-    with LOCK, connect() as db:
-     row = db.execute('SELECT result FROM attempts WHERE id=?',(int(data['id']),)).fetchone()
-     if not row: return self.send(404, {'error':'记录不存在'})
-     r = json.loads(row['result']); earned = data.get('earned')
-     if not isinstance(earned,list) or len(earned)!=len(r['points']): raise ValueError('须逐条确认采分点分数')
-     for p,v in zip(r['points'],earned):
-      if not isinstance(v,(int,float)) or isinstance(v,bool) or not math.isfinite(v) or not 0<=v<=p['score']: raise ValueError('复核分值越界')
-      p['earned']=v
-     score=sum(earned); expected='正确' if score==r['total'] else '错误' if score==0 else '部分得分'
-     if expected!=data['verdict']: raise ValueError('总分与判定不一致')
-     if expected!='正确' and data.get('error_type') not in ERRORS: raise ValueError('错题必须确认A/B/C/D错误类型')
-     r.update(verdict=expected,score=score,needs_review=False,error_type='' if expected=='正确' else data['error_type'],basis='人工复核评分')
-     db.execute('UPDATE attempts SET result=?,confirmed=1 WHERE id=?',(json.dumps(r,ensure_ascii=False),data['id']))
+    r = confirm(data)
     return self.send(200,{'result':r,'report':report(r)})
    self.send(404,{'error':'未找到接口'})
   except (ValueError, KeyError, TypeError) as exc: self.send(400, {'error':str(exc)})
+  except LookupError as exc: self.send(404, {'error':str(exc)})
   except Exception: self.send(500, {'error':'服务器处理失败，请检查本机日志；未确认成绩'})
 
 if __name__ == '__main__':

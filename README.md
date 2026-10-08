@@ -4,7 +4,13 @@ This repository is used to test Codex cloud environment。
 
 面向数学、语文、英语、地理、生物、历史、道德与法治的本机网页工具。帮助学生抓采分逻辑、理解关键词、用5分钟补漏，保留十项固定报告和逆向学习引导。
 
-## 访问和操作
+## 最简单：在线使用
+
+无需安装Python：[点击一键部署到 Render](https://render.com/deploy?repo=https://github.com/clemettjante9509-source/codex-test)。用GitHub登录，设置至少12位的家庭密码并部署。上线后打开平台提供的HTTPS网址，用户名 `homework`，密码为自己设置的密码。
+
+完整步骤见 [在线部署说明](docs/online-deploy.md)。默认使用免费方案；可能休眠，错题记录重启后可能丢失，请及时导出。模型自动语义批改需另配密钥；代码已具备部署配置，但尚未在用户账号中上线。
+
+## 本机访问和操作
 
 需要 Python 3.10 或以上，无需安装第三方依赖。
 
@@ -14,7 +20,7 @@ cd codex-test
 python3 server.py
 ```
 
-在**运行命令的电脑**浏览器地址栏输入 `http://127.0.0.1:8000`。GitHub 仓库地址不是运行中的网页。云容器内运行仅用于本机验证；本项目没有发布公共网站。服务器默认只监听本机；不要直接暴露到公网，当前没有多用户登录和访问控制。
+在**运行命令的电脑**浏览器地址栏输入 `http://127.0.0.1:8000`。GitHub 仓库地址不是运行中的网页。云容器内运行仅用于本机验证；本项目没有发布公共网站。服务器默认只监听本机；不要直接暴露到公网，本机版本没有访问控制。线上版本使用 Flask + Gunicorn 和家庭密码，仅供同一家庭共享记录。
 
 1. 选择科目，输入原题和学生答案。
 2. 点击「载入历史例题」可立即试用。其他开放题请填写参考答案、教材章节、教师采分点；有模型配置时可选择模型辅助。
@@ -69,6 +75,7 @@ python3 server.py
 
 ```bash
 python3 -m unittest discover -s tests -v
+# 在线版完整测试：先在虚拟环境安装 requirements.txt，再执行同一命令
 node --check static/app.js
 ```
 

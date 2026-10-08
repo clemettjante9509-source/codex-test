@@ -1,6 +1,6 @@
 <!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>初一高效作业批改与提分</title><link rel="stylesheet" href="/style.css"></head><body><main>
 <h1>初一高效作业批改 & 提分</h1><p>优先抓得分逻辑，减少无效学习，降低背诵压力。</p>
-<p class="notice">开放题需要教师采分点或模型辅助。预评分须核对；本工具不承诺满分准确率。数据保存在本机，勿输入姓名等个人信息。</p>
+<p class="notice" id="usage-notice">开放题需要教师采分点或模型辅助。预评分须核对；本工具不承诺满分准确率。勿输入姓名等个人信息。</p>
 <section><form id="grade-form"><div class="row"><label>科目<select id="subject"><option>数学</option><option>语文</option><option>英语</option><option>地理</option><option>生物</option><option selected>历史</option><option>道德与法治</option></select></label><label>方式<select id="mode"><option value="rubric">采分点辅助（待复核）</option><option value="exact">客观题精确比对</option><option value="model">模型辅助（需服务器密钥）</option></select></label></div>
 <label>原题<textarea id="question" required maxlength="12000" rows="3"></textarea></label><label>学生答案<textarea id="answer" required maxlength="12000" rows="3"></textarea></label>
 <details open><summary>评分依据（开放题建议由教师填写）</summary><label>教材版本 / 章节 / 考点<input id="chapter" placeholder="如：七年级上册·战国时期的社会变化·商鞅变法"></label><label>参考答案<textarea id="reference" rows="2"></textarea></label><label>采分点 JSON<textarea id="points" rows="4" placeholder='[{"text":"奖励耕织","keywords":["奖励耕织","奖励耕种"],"score":2}]'></textarea></label><small>每条应是一个独立得分点；keywords 是同义替代表达，命中任意一个仅表示覆盖。复合要点请拆开。</small><label>变式题（可选；不填则生成答题角度练习）<input id="variant-q"></label><label>变式答案<input id="variant-a"></label><label>变式采分点<input id="variant-p"></label></details>
