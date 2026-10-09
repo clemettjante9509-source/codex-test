@@ -59,15 +59,20 @@ python3 server.py
 | --- | --- |
 | `GRADING_API_KEY` | 模型密钥，通过本机安全环境配置注入；不要提交到 Git 或粘贴到网页 |
 | `GRADING_API_BASE` | HTTPS OpenAI 兼容接口，默认 `https://api.openai.com/v1` |
+| `GRADING_VISION_MODEL` | 图片批改模型；默认沿用 `GRADING_MODEL`，必须支持图片输入 |
 | `GRADING_MODEL` | 默认 `gpt-4.1-mini`，可换为供应商支持的模型 |
 | `PORT` | 默认8000 |
 | `HOMEWORK_DB` | 默认 `.data/homework.db`，可改为其他本机路径 |
 
 供应商须支持 `/chat/completions`、JSON对象输出及所选模型。失败时不写入成绩。模型会收到原题、学生答案和评分依据，请先去除个人信息，费用与数据处理以供应商约定为准。实际供应商调用需你配置密钥后验证；自动化测试使用模拟响应，不代表真实模型精度。
 
-## OCR 预留
+## 拍照批改
 
-网页可选择图片并检查接口，`POST /api/ocr` 当前明确返回 HTTP 501，不会假装已识别或上传到第三方。响应包含后续 multipart 图片上传和识别结果的契约；接入时须加入真实图片类型/10MB大小校验、OCR供应商适配及识别文本人工确认。当前学生需手动输入文字。
+在线版已实现“手机拍照/上传照片 → 自动逐题识别和批改 → 十项报告 → 核对并归档”，无需手动输入原题和答案。需要配置支持图片输入的模型密钥；尚未提供真实供应商密钥，真实照片识别精度未验证。
+
+配置与操作见 [拍照使用说明](docs/photo-grading.md)。每张最多8题、10MB，仅JPEG/PNG/WebP。模糊题提示重拍，不强行判分。原图只在内存处理并发送到模型供应商，服务器不保存原图。
+
+线上新增 `POST /api/photo-grade`，JSON字段为 `subject`、`image`（base64 data URL）、`compact`。返回 `items`（每题识别原题、答案、是否清晰、问题说明与报告）和 `truncated`。清晰题自动生成待复核报告；不清晰题跳过判分。原有 `/api/ocr` 保留兼容提示，不是当前拍照入口。本机 `python3 server.py` 仍是文字版；拍照功能在Flask线上入口运行。
 
 ## 数据与测试
 

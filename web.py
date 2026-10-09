@@ -9,12 +9,13 @@ from flask import Flask, jsonify, request, send_from_directory, Response
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.exceptions import HTTPException
 from engine import grade, report, EXAMPLE
+from vision import photo_grade
 import server
 
 
 def create_app(config=None):
  app = Flask(__name__, static_folder=None)
- app.config.update(MAX_CONTENT_LENGTH=100000,
+ app.config.update(MAX_CONTENT_LENGTH=14*1024*1024,
   APP_PASSWORD=os.environ.get('APP_PASSWORD',''),
   ALLOWED_HOSTS=os.environ.get('ALLOWED_HOSTS',os.environ.get('RENDER_EXTERNAL_HOSTNAME','localhost,127.0.0.1')).split(','),
   REQUIRE_HTTPS=os.environ.get('REQUIRE_HTTPS','true').lower()=='true')
@@ -40,6 +41,8 @@ def create_app(config=None):
    return Response('请输入家庭访问账号和密码。账号：homework',401,
     headers={'WWW-Authenticate':'Basic realm="Homework", charset="UTF-8"'},content_type='text/plain; charset=utf-8')
   if request.method=='POST':
+   if request.path != '/api/photo-grade':
+    request.max_content_length=100000
    origin=request.headers.get('Origin')
    if origin and (urlparse(origin).netloc!=request.host or urlparse(origin).scheme!=request.scheme):
     return jsonify(error='禁止跨站请求'),403
@@ -106,6 +109,18 @@ def create_app(config=None):
   else:r=grade(data)
   ident,merged=server.save(r)
   return jsonify(id=ident,result=r,report=report(r,bool(data.get('compact')),merged),merged=merged)
+
+ @app.post('/api/photo-grade')
+ def photo_grading():
+  data=body()
+  if not model_gate.acquire(blocking=False):return jsonify(error='正在处理其他作业照片，请稍后重试'),429
+  try:analysis=photo_grade(data)
+  finally:model_gate.release()
+  for item in analysis['items']:
+   if item['grading'] is None:continue
+   r=item.pop('grading');ident,merged=server.save(r)
+   item.update(id=ident,result=r,report=report(r,bool(data.get('compact')),merged),merged=merged)
+  return jsonify(analysis)
 
  @app.get('/api/errors')
  def errors():return jsonify(server.list_errors(request.args.to_dict(flat=False)))

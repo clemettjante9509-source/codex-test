@@ -63,23 +63,28 @@ def model_grade(data):
   result = json.loads(result['choices'][0]['message']['content'])
  except Exception as exc:
   raise ValueError('模型调用失败或返回格式无效，请核对接口配置后重试；未生成成绩') from exc
+ return validate_model_result(result, data)
+
+def validate_model_result(result, data):
  try:
   require(result['verdict'] in ('正确', '部分得分', '错误'))
   require(type(result['needs_review']) is bool)
   require(result['error_type'] in ('', *ERRORS))
-  require(result['points'] and len(result['points']) <= 30)
+  require(isinstance(result['points'],list) and bool(result['points']) and len(result['points']) <= 30)
   for p in result['points']:
-   require(isinstance(p['text'], str) and isinstance(p['keywords'], list) and all(isinstance(k,str) for k in p['keywords']))
+   require(isinstance(p['text'], str) and isinstance(p['keywords'], list) and bool(p['keywords']) and all(isinstance(k,str) for k in p['keywords']))
+   require(isinstance(p['earned'],(int,float)) and not isinstance(p['earned'],bool) and isinstance(p['score'],(int,float)) and not isinstance(p['score'],bool))
    require(math.isfinite(p['earned']) and math.isfinite(p['score']) and 0 <= p['earned'] <= p['score'] and p['score'] > 0)
    require(isinstance(p['evidence'], str) and (not p['evidence'] or p['evidence'] in data['answer']))
+   require(p['earned']==0 or bool(p['evidence']))
   require(math.isfinite(result['total']) and math.isfinite(result['score']))
   require(abs(sum(p['score'] for p in result['points']) - result['total']) < .001)
   require(abs(sum(p['earned'] for p in result['points']) - result['score']) < .001)
   expected = '正确' if result['score'] == result['total'] else '错误' if result['score'] == 0 else '部分得分'
   require(result['verdict'] == expected)
-  for f in ('reference','chapter','diagnosis','plan','reverse','trap'): assert isinstance(result[f], str) and result[f]
+  for f in ('reference','chapter','diagnosis','plan','reverse','trap'): require(isinstance(result[f], str) and bool(result[f]))
   require(isinstance(result['steps'],list) and result['steps'] and all(isinstance(x,str) for x in result['steps']))
-  for f in ('question','answer','points'): assert isinstance(result['variant'][f],str) and result['variant'][f]
+  for f in ('question','answer','points'): require(isinstance(result['variant'][f],str) and bool(result['variant'][f]))
  except (AssertionError, KeyError, TypeError, ValueError) as exc: raise ValueError('模型评分证据或分值校验失败，未生成成绩') from exc
  result['needs_review'] = True  # AI confidence does not substitute for teacher verification.
  result['basis'] = '模型辅助评分；须人工核对，不能承诺满分准确率'
